@@ -137,6 +137,7 @@ void Robot::move(MovingDirection dir)
 
 void Robot::wanderAvoidingCollisions()
 {
+    //TODO - implementar desvio de obstaculos
     float minLeftSonar  = base.getMinSonarValueInRange(0,2);
     float minFrontSonar = base.getMinSonarValueInRange(3,4);
     float minRightSonar = base.getMinSonarValueInRange(5,7);
@@ -150,31 +151,31 @@ void Robot::wanderAvoidingCollisions()
 
    //TODO - implementar desvio de obstaculos
    float min_distance = 1.0;
-   //std::cout << minLeftSonar << " " <<  minLeftLaser<< "n";
-   //std::cout << minFrontSonar << " " <<  minFrontLaser<< "n";
-   //std::cout << minRightSonar << " " <<  minRightLaser<< "n";
+   std::cout << minLeftSonar << " " <<  minLeftLaser<< "n";
+   std::cout << minFrontSonar << " " <<  minFrontLaser<< "n";
+   std::cout << minRightSonar << " " <<  minRightLaser<< "n";
 
    if (minFrontLaser <= min_distance || minFrontSonar <= min_distance){ // Obstacle in front
        if ((minLeftLaser < minRightLaser) || (minLeftSonar < minRightSonar)){
            linVel = 0.0;
-           angVel = -0.5;
+           angVel = -1;
        }
        else{
            linVel = 0.0;
-           angVel = 0.5;
+           angVel = 1;
        }
    }
    else{
        if (minLeftLaser <= min_distance || minLeftSonar <= min_distance){
-           linVel = 0.5;
-           angVel = -0.5;
+           linVel = 20;
+           angVel = -1;
        }
        else if (minRightLaser <= min_distance || minRightSonar <= min_distance){
-           linVel = 0.5;
-           angVel = 0.5;
+           linVel = 20;
+           angVel = 1;
        }
        else{
-           linVel = 0.5;
+           linVel = 20;
            angVel = 0;
        }
 
@@ -202,52 +203,39 @@ void Robot::wallFollow()
         std::cout << "Following RIGHT wall" << std::endl;
 
     //TODO - implementar wall following usando PID
-    float tp = 0.1;
-    float td = 3;
-    float ti = 0.005;
+    float tp = 2;
+    float td = 20;
+    float ti = 0.0005;
     float CTE;
     float SP = 0.8;
     static std::vector<float> vec_CTE;
-    static float prev_CTE = 0;
-    // linear velocity is constant
-    // t_d largest, t_i smallest
+    //static float prev_CTE = 0;
 
-    //angVel = -t_p * CTE - t_d *(CTE_t - CTE_t_1) - t_i*sum(CTE,t)
-    // CTE = robot_pos - reference_track
-    if (isFollowingLeftWall_){
-        CTE = minLeftLaser < minLeftSonar? minLeftLaser-SP : minLeftSonar-SP;
-        float deriv_CTE = CTE - prev_CTE;
-        std::cout << CTE << " " << prev_CTE << "n";
-        prev_CTE = CTE;
-        angVel = -tp*CTE - td*deriv_CTE;
-    }
-    else{
-        if (minFrontLaser <= SP || minFrontSonar <= SP){
-            angVel = 0.2;
-            linVel = 0;
-        }
-        else{
-            linVel = 0.5;
-            CTE = minRightLaser < minRightSonar ? minRightLaser-SP : minRightSonar-SP;
-            float deriv_CTE = CTE - prev_CTE;
-            float sum_CTE;
-            vec_CTE.push_back(CTE);
-            if (vec_CTE.size() > 50){
-                vec_CTE.erase(vec_CTE.begin());
-            }
-            for (std::vector<float>::iterator it = vec_CTE.begin(); it != vec_CTE.end(); ++it){
-                sum_CTE += *it;
-            }
-            std::cout << CTE << " prev: " << prev_CTE << " sum: " << sum_CTE<< "n";
-            prev_CTE = CTE;
-            angVel = -tp*CTE - td*deriv_CTE - ti*sum_CTE;
-            sum_CTE = 0;
-            //std::cout << "Ang Vel: " << angVel << "n";
-        }
-
+    if(isFollowingLeftWall_){
+        CTE = minLeftLaser-SP;
+    }else{
+        CTE = minRightLaser-SP;
     }
 
+    float deriv_CTE = CTE - m_prev_CTE;
+    float sum_CTE=0;
+    vec_CTE.push_back(CTE);
+    if (vec_CTE.size() > 50){
+        vec_CTE.erase(vec_CTE.begin());
+    }
+    for (std::vector<float>::iterator it = vec_CTE.begin(); it != vec_CTE.end(); ++it){
+        sum_CTE += *it;
+    }
+    std::cout << "CTE: " << CTE << " prev: " << m_prev_CTE << " sum: " << sum_CTE<< std::endl;
+    m_prev_CTE = CTE;
+    angVel = -tp*CTE - td*deriv_CTE - ti*sum_CTE;
+    std::cout << "Ang Vel: " << angVel << std::endl;
 
+    if(minFrontLaser < 1.0){
+        linVel = 0.01;
+    }else{
+        linVel = 0.5;
+    }
 
 
     base.setWheelsVelocity_fromLinAngVelocity(linVel, angVel);
