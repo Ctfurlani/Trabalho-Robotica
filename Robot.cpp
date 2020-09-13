@@ -203,18 +203,29 @@ void Robot::wallFollow()
         std::cout << "Following RIGHT wall" << std::endl;
 
     //TODO - implementar wall following usando PID
-    float tp = 2;
-    float td = 20;
-    float ti = 0.0005;
+    float tp = 1.5;
+    float td = 11.5;
+    float ti = 0.0001;
     float CTE;
-    float SP = 0.8;
+    float SP = 1.0;
     static std::vector<float> vec_CTE;
     //static float prev_CTE = 0;
 
     if(isFollowingLeftWall_){
         CTE = minLeftLaser-SP;
+        CTE = -CTE;
+        if(m_wallFollowState == true){
+            m_wallFollowState = false;
+            m_prev_CTE = 0;
+            vec_CTE.clear();
+        }
     }else{
         CTE = minRightLaser-SP;
+        if(m_wallFollowState == false){
+            m_wallFollowState = true;
+            m_prev_CTE = 0;
+            vec_CTE.clear();
+        }
     }
 
     float deriv_CTE = CTE - m_prev_CTE;
@@ -231,7 +242,7 @@ void Robot::wallFollow()
     angVel = -tp*CTE - td*deriv_CTE - ti*sum_CTE;
     std::cout << "Ang Vel: " << angVel << std::endl;
 
-    if(minFrontLaser < 1.0){
+    if(minFrontLaser < 0.8){
         linVel = 0.01;
     }else{
         linVel = 0.5;
