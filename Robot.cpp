@@ -4,6 +4,7 @@
 #include <GL/glut.h>
 #include <cmath>
 #include <iostream>
+#include <math.h>
 
 
 //////////////////////////////////////
@@ -213,11 +214,11 @@ void Robot::mappingWithLogOddsUsingLaser()
 
     // how to access a grid cell:
 //    Cell* c=grid->getCell(robotX,robotY);
-    Cell *c;
+
     // access log-odds value of variable in c->logodds
     // how to convert logodds to occupancy values:
 //    c->occupancy = getOccupancyFromLogOdds(c->logodds);
-
+      Cell *c;
     // TODO: define fixed values of occupancy
     float p_occ = 0.8, p_free = 0.3;
 
@@ -240,7 +241,7 @@ void Robot::mappingWithLogOddsUsingLaser()
             r = sqrt(r)/scale;
 
             // cell orientation
-            double _phi = atan2(c->y - robotY, c->x - robotX) - robotAngle;
+            double _phi = (atan2(c->y - robotY, c->x - robotX)*(180/M_PI)) - robotAngle;
             float phi = normalizeAngleDEG(_phi);
 
             // find nearest sensor to the cell
@@ -249,7 +250,7 @@ void Robot::mappingWithLogOddsUsingLaser()
             float k_ang = base.getAngleOfLaserBeam(k);
 
 
-            if( (r > std::min(maxRange, k_reading + lambda_r/2)) || (abs(phi - k_ang) > (lambda_phi/2)) ){
+            if( (r > std::min(maxRange, k_reading + (lambda_r/2))) || (abs(phi - k_ang) > (lambda_phi/2)) ){
                 c->logodds = c->logodds;
             }
             else if( (abs(r - k_reading) < (lambda_r/2) ) && (k_reading < maxRange) ){
@@ -284,29 +285,37 @@ void Robot::mappingUsingSonar()
     for (int i = -maxRangeInt; i < maxRangeInt; ++i){
         for (int j = -maxRangeInt; j < maxRangeInt; ++j){
 
-            Cell* c = grid->getCell(robotX+i, robotY+j);
-            double r = pow(c->x - robotX, 2) + pow(c->y - robotY, 2);
-            r= sqrt(r)/scale;
+            Cell *c = grid->getCell(robotX+i, robotY+j);
+            // distance between cell and robot in meters
+            float r = pow((c->x - robotX), 2) + pow((c->y - robotY), 2);
+            r = sqrt(r)/scale;
 
-            // get distance between cell and robot divide it by scale to get in meters
-            float phi = normalizeAngleDEG( atan2(c->y - robotY, c->x - robotX) - robotAngle);
+            // cell orientation
+            double _phi = atan2(c->y - robotY, c->x - robotX)*180/M_PI - robotAngle;
+            float phi = normalizeAngleDEG(_phi);
+
+            // find nearest sensor to the cell
             int k = base.getNearestSonarBeam(phi);
-            bool fov = phi - base.getAngleOfSonarBeam(k) <= lambda_phi/2? true : false;
+            float k_reading = base.getKthSonarReading(k);
+            float k_ang = base.getAngleOfSonarBeam(k);
+
+
             float beta = lambda_phi/2;
-            float alpha = phi - base.getAngleOfSonarBeam(k);
+            float alpha = abs(phi - k_ang);
             float const_term = ((maxRange - r)/maxRange + (beta - alpha)/beta)/2;
             float occUpdate;
-            if (!fov) continue;
-            // Update occupancy
-            if (r <= base.getKthSonarReading(k)){
-                // free
-                occUpdate = 0.5*(1 - const_term );
+
+            if( (r > std::min(maxRange, k_reading + lambda_r/2)) || (abs(phi - k_ang) > (lambda_phi/2)) ){
+                c->occupancySonar= c->occupancySonar;
             }
-            else if( abs(r-base.getKthSonarReading(k)) < lambda_r/2  ){
-                // occupied
+            else if( (abs(r - k_reading) < (lambda_r/2) ) && (k_reading < maxRange) ){
                 occUpdate = 0.5*(const_term) + 0.5;
+                c->occupancySonar = (occUpdate*c->occupancySonar)/( (occUpdate*c->occupancySonar)+((1-occUpdate)*(1-c->occupancySonar)) );
             }
-            c->occupancySonar = (occUpdate*c->occupancySonar)/( (occUpdate*c->occupancySonar)+((1-occUpdate)*(1-c->occupancySonar)) );
+            else if (r <= k_reading){
+                occUpdate = 0.5*(1 - const_term );
+                c->occupancySonar = (occUpdate*c->occupancySonar)/( (occUpdate*c->occupancySonar)+((1-occUpdate)*(1-c->occupancySonar)) );
+            }
         }
     }
 
@@ -330,30 +339,35 @@ void Robot::mappingWithHIMMUsingLaser()
     for (int i = -maxRangeInt; i < maxRangeInt; ++i){
         for (int j = -maxRangeInt; j < maxRangeInt; ++j){
 
-            Cell* c = grid->getCell(robotX+i, robotY+j);
-            double r = pow(c->x - robotX, 2) + pow(c->y - robotY, 2);
-            r= sqrt(r)/scale;
+            Cell *c = grid->getCell(robotX+i, robotY+j);
+            // distance between cell and robot in meters
+            float r = pow((c->x - robotX), 2) + pow((c->y - robotY), 2);
+            r = sqrt(r)/scale;
 
-            // get distance between cell and robot divide it by scale to get in meters
-            float phi = normalizeAngleDEG( atan2(c->y - robotY, c->x - robotX) - robotAngle);
+            // cell orientation
+            double _phi = atan2(c->y - robotY, c->x - robotX)*180/M_PI - robotAngle;
+            float phi = normalizeAngleDEG(_phi);
+
+            // find nearest sensor to the cell
             int k = base.getNearestLaserBeam(phi);
-            bool fov = phi - base.getAngleOfLaserBeam(k) <= lambda_phi/2? true : false;
+            float k_reading = base.getKthLaserReading(k);
+            float k_ang = base.getAngleOfLaserBeam(k);
 
-            if (!fov) continue;
-            if (r <= base.getKthLaserReading(k)){
-                // free
+
+            if( (r > std::min(maxRange, k_reading + lambda_r/2)) || (abs(phi - k_ang) > (lambda_phi/2)) ){
+                c->himm = c->himm;
+            }
+            else if( (abs(r - k_reading) < (lambda_r/2) ) && (k_reading < maxRange) ){// occ
+                c->himm+=3;
+                if (c->himm > 15) c->himm = 15;
+            }
+            else if (r <= k_reading){//free
                 --c->himm;
                 if (c->himm < 0) c->himm = 0;
             }
-            else if( abs(r-base.getKthLaserReading(k)) < lambda_r/2  ){
-                // occupied
-               c->himm+=3;
-               if (c->himm > 15) c->himm = 15;
-            }
+
         }
     }
-
-
 
 }
 
