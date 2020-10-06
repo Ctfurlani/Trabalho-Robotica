@@ -233,20 +233,23 @@ void Robot::mappingWithLogOddsUsingLaser()
     //  (robotX-maxRangeInt,robotY-maxRangeInt)  -------  (robotX+maxRangeInt,robotY-maxRangeInt)
     for (int i = -maxRangeInt; i <= maxRangeInt; ++i){
         for (int j = -maxRangeInt; j <= maxRangeInt; ++j){
-            // distance between cell and robot in meters
 
             c = grid->getCell(robotX+i, robotY+j);
+            // distance between cell and robot in meters
             float r = pow((c->x - robotX), 2) + pow((c->y - robotY), 2);
             r = sqrt(r)/scale;
+
             // cell orientation
-            double _phi = atan2(c->y - robotX, c->x - robotY) - robotAngle;
+            double _phi = atan2(c->y - robotY, c->x - robotX) - robotAngle;
             float phi = normalizeAngleDEG(_phi);
+
             // find nearest sensor to the cell
             int k = base.getNearestLaserBeam(phi);
             float k_reading = base.getKthLaserReading(k);
             float k_ang = base.getAngleOfLaserBeam(k);
 
-            if( (r > std::min(maxRange,k_reading + lambda_r/2)) || (abs(phi - k_ang) > (lambda_phi/2)) ){
+
+            if( (r > std::min(maxRange, k_reading + lambda_r/2)) || (abs(phi - k_ang) > (lambda_phi/2)) ){
                 c->logodds = c->logodds;
             }
             else if( (abs(r - k_reading) < (lambda_r/2) ) && (k_reading < maxRange) ){
