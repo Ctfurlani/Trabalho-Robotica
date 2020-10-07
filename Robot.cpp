@@ -308,14 +308,16 @@ void Robot::mappingUsingSonar()
             if( (r > std::min(maxRange, k_reading + lambda_r/2)) || (abs(phi - k_ang) > (lambda_phi/2)) ){
                 c->occupancySonar= c->occupancySonar;
             }
-            else if( (abs(r - k_reading) < (lambda_r/2) ) && (k_reading < maxRange) ){
+            else if( (abs(r - k_reading) < (lambda_r/2) ) && (k_reading < maxRange) ){ // occ
                 occUpdate = 0.5*(const_term) + 0.5;
                 c->occupancySonar = (occUpdate*c->occupancySonar)/( (occUpdate*c->occupancySonar)+((1-occUpdate)*(1-c->occupancySonar)) );
             }
-            else if (r <= k_reading){
+            else if (r <= k_reading){//free
                 occUpdate = 0.5*(1 - const_term );
                 c->occupancySonar = (occUpdate*c->occupancySonar)/( (occUpdate*c->occupancySonar)+((1-occUpdate)*(1-c->occupancySonar)) );
             }
+            if (c->occupancySonar < 0.01) c->occupancySonar = 0.01;
+            if (c->occupancySonar > 0.99) c->occupancySonar = 0.99;
         }
     }
 
