@@ -4,7 +4,6 @@
 #include <GL/glut.h>
 #include <cmath>
 #include <iostream>
-#include <math.h>
 
 
 //////////////////////////////////////
@@ -109,6 +108,15 @@ void Robot::run()
         case WALLFOLLOW:
             wallFollow();
             break;
+        case POTFIELD_0:
+            followPotentialField(0);
+            break;
+        case POTFIELD_1:
+            followPotentialField(1);
+            break;
+        case POTFIELD_2:
+            followPotentialField(2);
+            break;
         case ENDING:
             running_=false;
             break;
@@ -148,29 +156,76 @@ void Robot::move(MovingDirection dir)
         base.setMovementSimple(dir);
     else if(motionMode_==MANUAL_VEL)
         base.setMovementVel(dir);
-    else if(motionMode_=WALLFOLLOW)
+    else if(motionMode_==WALLFOLLOW)
         if(dir==LEFT)
             isFollowingLeftWall_=true;
         else if(dir==RIGHT)
             isFollowingLeftWall_=false;
+
+
+
 }
 
 void Robot::wanderAvoidingCollisions()
 {
+    //TODO - implementar desvio de obstaculos
+    float minLeftSonar  = base.getMinSonarValueInRange(0,2);
+    float minFrontSonar = base.getMinSonarValueInRange(3,4);
+    float minRightSonar = base.getMinSonarValueInRange(5,7);
+
+    float minLeftLaser  = base.getMinLaserValueInRange(0,74);
+    float minFrontLaser = base.getMinLaserValueInRange(75,105);
+    float minRightLaser = base.getMinLaserValueInRange(106,180);
+
     float linVel=0;
     float angVel=0;
 
-    //TODO - implement obstacle avoidance
+   //TODO - implementar desvio de obstaculos
+   float min_distance = 1.0;
+   std::cout << minLeftSonar << " " <<  minLeftLaser<< "n";
+   std::cout << minFrontSonar << " " <<  minFrontLaser<< "n";
+   std::cout << minRightSonar << " " <<  minRightLaser<< "n";
 
+   if (minFrontLaser <= min_distance || minFrontSonar <= min_distance){ // Obstacle in front
+       if ((minLeftLaser < minRightLaser) || (minLeftSonar < minRightSonar)){
+           linVel = 0.0;
+           angVel = -1;
+       }
+       else{
+           linVel = 0.0;
+           angVel = 1;
+       }
+   }
+   else{
+       if (minLeftLaser <= min_distance || minLeftSonar <= min_distance){
+           linVel = 20;
+           angVel = -1;
+       }
+       else if (minRightLaser <= min_distance || minRightSonar <= min_distance){
+           linVel = 20;
+           angVel = 1;
+       }
+       else{
+           linVel = 20;
+           angVel = 0;
+       }
 
-
+   }
 
     base.setWheelsVelocity_fromLinAngVelocity(linVel, angVel);
 }
 
 void Robot::wallFollow()
 {
-    float linVel=0;
+    float minLeftSonar  = base.getMinSonarValueInRange(0,2);
+    float minFrontSonar = base.getMinSonarValueInRange(3,4);
+    float minRightSonar = base.getMinSonarValueInRange(5,7);
+
+    float minLeftLaser  = base.getMinLaserValueInRange(0,74);
+    float minFrontLaser = base.getMinLaserValueInRange(75,105);
+    float minRightLaser = base.getMinLaserValueInRange(106,180);
+
+    float linVel=0.5;
     float angVel=0;
 
     if(isFollowingLeftWall_)
@@ -179,11 +234,76 @@ void Robot::wallFollow()
         std::cout << "Following RIGHT wall" << std::endl;
 
     //TODO - implementar wall following usando PID
+    float tp = 1.5;
+    float td = 11.5;
+    float ti = 0.0001;
+    float CTE;
+    float SP = 1.0;
+    static std::vector<float> vec_CTE;
+    //static float prev_CTE = 0;
 
+    if(isFollowingLeftWall_){
+        CTE = minLeftLaser-SP;
+        CTE = -CTE;
+        if(m_wallFollowState == true){
+            m_wallFollowState = false;
+            m_prev_CTE = 0;
+            vec_CTE.clear();
+        }
+    }else{
+        CTE = minRightLaser-SP;
+        if(m_wallFollowState == false){
+            m_wallFollowState = true;
+            m_prev_CTE = 0;
+            vec_CTE.clear();
+        }
+    }
+
+    float deriv_CTE = CTE - m_prev_CTE;
+    float sum_CTE=0;
+    vec_CTE.push_back(CTE);
+    if (vec_CTE.size() > 50){
+        vec_CTE.erase(vec_CTE.begin());
+    }
+    for (std::vector<float>::iterator it = vec_CTE.begin(); it != vec_CTE.end(); ++it){
+        sum_CTE += *it;
+    }
+    std::cout << "CTE: " << CTE << " prev: " << m_prev_CTE << " sum: " << sum_CTE<< std::endl;
+    m_prev_CTE = CTE;
+    angVel = -tp*CTE - td*deriv_CTE - ti*sum_CTE;
+    std::cout << "Ang Vel: " << angVel << std::endl;
+
+    if(minFrontLaser < 0.8){
+        linVel = 0.01;
+    }else{
+        linVel = 0.5;
+    }
 
 
     base.setWheelsVelocity_fromLinAngVelocity(linVel, angVel);
 }
+
+void Robot::followPotentialField(int t)
+{
+    int scale = grid->getMapScale();
+    int robotX=currentPose_.x*scale;
+    int robotY=currentPose_.y*scale;
+    float robotAngle = currentPose_.theta;
+
+    // how to access the grid cell associated to the robot position
+    Cell* c=grid->getCell(robotX,robotY);
+
+    float linVel, angVel;
+
+    // TODO: define the robot velocities using a control strategy
+    //       based on the direction of the gradient of c given by c->dirX[t] and c->dirY[t]
+
+
+
+
+    base.setWheelsVelocity_fromLinAngVelocity(linVel,angVel);
+}
+
 
 ///////////////////////////
 ///// MAPPING METHODS /////
@@ -212,26 +332,11 @@ void Robot::mappingWithLogOddsUsingLaser()
     int robotY=currentPose_.y*scale;
     float robotAngle = currentPose_.theta;
 
-    // how to access a grid cell:
-//    Cell* c=grid->getCell(robotX,robotY);
+    Cell *c;
 
-    // access log-odds value of variable in c->logodds
-    // how to convert logodds to occupancy values:
-//    c->occupancy = getOccupancyFromLogOdds(c->logodds);
-      Cell *c;
-    // TODO: define fixed values of occupancy
     float p_occ = 0.8, p_free = 0.3;
 
-    // TODO: update cells in the sensors' field-of-view
-    // ============================================================================
-    // you only need to check the cells at most maxRangeInt from the robot position
-    // that is, in the following square region:
-    //
-    //  (robotX-maxRangeInt,robotY+maxRangeInt)  -------  (robotX+maxRangeInt,robotY+maxRangeInt)
-    //                     |                       \                         |
-    //                     |                        \                        |
-    //                     |                         \                       |
-    //  (robotX-maxRangeInt,robotY-maxRangeInt)  -------  (robotX+maxRangeInt,robotY-maxRangeInt)
+
     for (int i = -maxRangeInt; i <= maxRangeInt; ++i){
         for (int j = -maxRangeInt; j <= maxRangeInt; ++j){
 
@@ -263,7 +368,6 @@ void Robot::mappingWithLogOddsUsingLaser()
 
         }
     }
-
 }
 
 void Robot::mappingUsingSonar()
@@ -280,8 +384,7 @@ void Robot::mappingUsingSonar()
     int robotY=currentPose_.y*scale;
     float robotAngle = currentPose_.theta;
 
-    // TODO: update cells in the sensors' field-of-view
-    // Follow the example in mappingWithLogOddsUsingLaser()
+
     for (int i = -maxRangeInt; i < maxRangeInt; ++i){
         for (int j = -maxRangeInt; j < maxRangeInt; ++j){
 
@@ -320,7 +423,6 @@ void Robot::mappingUsingSonar()
             if (c->occupancySonar > 0.99) c->occupancySonar = 0.99;
         }
     }
-
 }
 
 void Robot::mappingWithHIMMUsingLaser()
@@ -370,7 +472,6 @@ void Robot::mappingWithHIMMUsingLaser()
 
         }
     }
-
 }
 
 /////////////////////////////////////////////////////

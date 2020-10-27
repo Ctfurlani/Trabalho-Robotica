@@ -1,4 +1,9 @@
-!Robot.h
-!Robot.cpp
-!Planning.h
-!Planning.cpp
+*.*
+*
+build*/
+!phir2framework/src/Robot.h
+!phir2framework/src/Robot.cpp
+!phir2framework/src/Planning.h
+!phir2framework/src/Planning.cpp
+
+
