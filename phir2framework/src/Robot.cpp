@@ -293,11 +293,37 @@ void Robot::followPotentialField(int t)
     // how to access the grid cell associated to the robot position
     Cell* c=grid->getCell(robotX,robotY);
 
-    float linVel, angVel;
+    float linVel = 20;
+    float angVel = 0.0;
+    float tp = 1.5;
 
-    // TODO: define the robot velocities using a control strategy
-    //       based on the direction of the gradient of c given by c->dirX[t] and c->dirY[t]
+    int gradientWindow = 4;
+    float dirY=0;
+    float dirX=0;
 
+    for(int adjX = -sqrt(gradientWindow); adjX<=sqrt(gradientWindow); adjX++){
+        for(int adjY = -sqrt(gradientWindow); adjY<=sqrt(gradientWindow); adjY++){
+            Cell * windowCell = grid->getCell(c->x+adjX, c->y+adjY);
+            dirY+=windowCell->dirY[t];
+            dirX+=windowCell->dirX[t];
+        }
+    }
+
+    dirY=dirY/gradientWindow;
+    dirX=dirX/gradientWindow;
+
+
+    float phi = RAD2DEG(atan2(dirY, dirX))-robotAngle;
+    phi = normalizeAngleDEG(phi);
+
+    std::cout << "PHI: " << phi << std::endl;
+
+
+    angVel = tp * phi;
+
+    if(abs(phi) > 170){
+        linVel = 0;
+    }
 
 
 
