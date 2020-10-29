@@ -148,22 +148,34 @@ void Planning::initializePotentials()
 {
     Cell *c;
 
-    // the potential of a cell is stored in:
-    // c->pot[i]
-    // the preference of a cell is stored in:
-    // c->pref
+    for(int xCell = gridLimits.minX; xCell <= gridLimits.maxX; xCell++){
+        for(int yCell = gridLimits.minY; yCell <= gridLimits.maxY; yCell++){
+            c = grid->getCell(xCell, yCell);
 
-    // TODO: initialize the potential field in the known map
-    //
-    //  (gridLimits.minX, gridLimits.maxY)  -------  (gridLimits.maxX, gridLimits.maxY)
-    //                  |                     \                      |
-    //                  |                      \                     |
-    //                  |                       \                    |
-    //  (gridLimits.minX, gridLimits.minY)  -------  (gridLimits.maxX, gridLimits.minY)
+            //potenciais
+            if(c->planType == DANGER || c->occType == OCCUPIED){
+                c->pot[0] = 1.0;
+                c->pot[1] = 1.0;
+                c->pot[2] = 1.0;
+            }else if(c->planType == FRONTIER_NEAR_WALL){
+                c->pot[0] = 0.0;
+                c->pot[1] = 0.0;
+                c->pot[2] = 0.0;
+            }else if(c->planType == FRONTIER){
+                c->pot[0] = 0.0;
+                c->pot[1] = 0.0;
+                c->pot[2] = 1.0;
+            }
 
-
-
-
+            //Preferencias
+            float pref = 0.1;
+            if(c->planType == NEAR_WALLS){
+                c->pref = +pref;
+            }else if(c->occType == FREE){
+                c->pref = -pref;
+            }
+        }
+    }
 }
 
 void Planning::iteratePotentials()
@@ -171,52 +183,88 @@ void Planning::iteratePotentials()
     Cell* c;
     Cell *left,*right,*up,*down;
 
-    // the update of a FREE cell in position (i,j) will use the potential of the four adjacent cells
-    // where, for example:
-    //     left  = grid->getCell(i-1,j);
+
+    for(int xCell = gridLimits.minX; xCell <= gridLimits.maxX; xCell++){
+        for(int yCell = gridLimits.minY; yCell <= gridLimits.maxY; yCell++){
+            c = grid->getCell(xCell, yCell);
+
+            if(c->occType == FREE){
+                left = grid->getCell(c->x-1, c->y);
+                right = grid->getCell(c->x+1, c->y);
+                down = grid->getCell(c->x, c->y-1);
+                up = grid->getCell(c->x, c->y+1);
+
+                float medPotA = (left->pot[0] + right->pot[0] + down->pot[0] + up->pot[0]) / 4;
+                float medPotC = (left->pot[2] + right->pot[2] + down->pot[2] + up->pot[2]) / 4;
+
+                c->pot[0] = medPotA;
+                c->pot[2] = medPotC;
 
 
-    // TODO: iterate the potential field in the known map
-    //
-    //  (gridLimits.minX, gridLimits.maxY)  -------  (gridLimits.maxX, gridLimits.maxY)
-    //                  |                     \                      |
-    //                  |                      \                     |
-    //                  |                       \                    |
-    //  (gridLimits.minX, gridLimits.minY)  -------  (gridLimits.maxX, gridLimits.minY)
+                float h = (left->pot[1] + right->pot[1] + down->pot[1] + up->pot[1]) / 4;
+                float d = ((left->pot[1] - right->pot[1])/2) + ((down->pot[1] - up->pot[1])/2);
 
+                c->pot[1] = h-(c->pref/4)*d;
+            }
 
-
-
-
+        }
+    }
 }
 
 void Planning::updateGradient()
 {
     Cell* c;
 
-    // the components of the descent gradient of a cell are stored in:
-    // c->dirX[i] and c->dirY[i], for pot[i]
-
     Cell *left,*right,*up,*down;
 
-    // the gradient of a FREE cell in position (i,j) is computed using the potential of the four adjacent cells
-    // where, for example:
-    //     left  = grid->getCell(i-1,j);
 
+    for(int xCell = gridLimits.minX; xCell <= gridLimits.maxX; xCell++){
+        for(int yCell = gridLimits.minY; yCell <= gridLimits.maxY; yCell++){
+            c = grid->getCell(xCell, yCell);
 
-    // TODO: compute the gradient of the FREE cells in the known map
-    //
-    //  (gridLimits.minX, gridLimits.maxY)  -------  (gridLimits.maxX, gridLimits.maxY)
-    //                  |                     \                      |
-    //                  |                      \                     |
-    //                  |                       \                    |
-    //  (gridLimits.minX, gridLimits.minY)  -------  (gridLimits.maxX, gridLimits.minY)
+            if(c->occType == FREE){
+                left = grid->getCell(c->x-1, c->y);
+                right = grid->getCell(c->x+1, c->y);
+                down = grid->getCell(c->x, c->y-1);
+                up = grid->getCell(c->x, c->y+1);
 
+                c->dirX[0] = -(right->pot[0] - left->pot[0])/2;
+                c->dirX[1] = -(right->pot[1] - left->pot[1])/2;
+                c->dirX[2] = -(right->pot[2] - left->pot[2])/2;
 
+                c->dirY[0] = -(up->pot[0] - down->pot[0])/2;
+                c->dirY[1] = -(up->pot[1] - down->pot[1])/2;
+                c->dirY[2] = -(up->pot[2] - down->pot[2])/2;
 
+                float pNormA = sqrt(pow(c->dirX[0],2)+pow(c->dirY[0], 2));
+                float pNormB = sqrt(pow(c->dirX[1],2)+pow(c->dirY[1], 2));
+                float pNormC = sqrt(pow(c->dirX[2],2)+pow(c->dirY[2], 2));
 
+                if(pNormA != 0.0){
+                    c->dirX[0] = c->dirX[0]/pNormA;
+                    c->dirY[0] = c->dirY[0]/pNormA;
+                }
 
+                if(pNormB != 0.0){
+                    c->dirX[1] = c->dirX[1]/pNormB;
+                    c->dirY[1] = c->dirY[1]/pNormB;
+                }
 
+                if(pNormC != 0.0){
+                    c->dirX[2] = c->dirX[2]/pNormC;
+                    c->dirY[2] = c->dirY[2]/pNormC;
+                }
 
+            }else if(c->occType == OCCUPIED){
+                c->dirX[0] = 0.0;
+                c->dirX[1] = 0.0;
+                c->dirX[2] = 0.0;
+                c->dirY[0] = 0.0;
+                c->dirY[1] = 0.0;
+                c->dirY[2] = 0.0;
+            }
+
+        }
+    }
 }
 

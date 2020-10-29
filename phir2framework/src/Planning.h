@@ -20,11 +20,11 @@ typedef struct
 
 
 class Planning {
-	public:
+    public:
         Planning();
         ~Planning();
 
-		void run();
+        void run();
 
         void initialize();
 
@@ -36,7 +36,7 @@ class Planning {
 
         Grid* grid;
 
-	private:
+    private:
 
         void resetCellsTypes();
         void updateCellsTypes();
