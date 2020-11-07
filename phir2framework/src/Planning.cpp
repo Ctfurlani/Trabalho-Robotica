@@ -168,7 +168,7 @@ void Planning::initializePotentials()
             }
 
             //Preferencias
-            float pref = 0.2;
+            float pref = 0.4;
             if(c->planType == NEAR_WALLS){
                 c->pref = pref;
             }else if(c->occType == FREE){
@@ -202,7 +202,7 @@ void Planning::iteratePotentials()
 
 
                 float h = (left->pot[1] + right->pot[1] + down->pot[1] + up->pot[1]) / 4;
-                float d = abs((left->pot[1] - right->pot[1])/2) + abs((down->pot[1] - up->pot[1])/2);
+                float d = fabs((left->pot[1] - right->pot[1])/2) + fabs((down->pot[1] - up->pot[1])/2);
 
                 c->pot[1] = h-(c->pref/4)*d;
             }
