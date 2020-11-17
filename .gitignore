@@ -5,5 +5,7 @@ build*/
 !phir2framework/src/Robot.cpp
 !phir2framework/src/Planning.h
 !phir2framework/src/Planning.cpp
+!phir2framework/src/MCL.h
+!phir2framework/src/MCL.cpp
 
 
