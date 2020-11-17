@@ -85,97 +85,137 @@ void Planning::resetCellsTypes()
             c->planType = REGULAR;
         }
     }
+
+
 }
 
 void Planning::updateCellsTypes()
 {
     Cell* c;
 
+    // If you want to access all observed cells (since the start), use this range
+    //
+    //  (gridLimits.minX, gridLimits.maxY)  -------  (gridLimits.maxX, gridLimits.maxY)
+    //                  |                     \                      |
+    //                  |                      \                     |
+    //                  |                       \                    |
+    //  (gridLimits.minX, gridLimits.minY)  -------  (gridLimits.maxX, gridLimits.minY)
+
+    // TODO: classify cells
+
+    // the occupancy type of a cell can be defined as:
+    // c->occType = UNEXPLORED
+    // c->occType = OCCUPIED
+    // c->occType = FREE
+
+    // the planning type of a cell can be defined as:
+    // c->planType = REGULAR
+    // c->planType = FRONTIER
+    // c->planType = DANGER
+    // c->planType = NEAR_WALLS
+    // c->planType = FRONTIER_NEAR_WALL
     for(int cellX = -maxUpdateRange; cellX<=+maxUpdateRange; cellX++){
-        for(int cellY =-maxUpdateRange; cellY<=+maxUpdateRange; cellY++){
+       for(int cellY =-maxUpdateRange; cellY<=+maxUpdateRange; cellY++){
 
-            c = grid->getCell(robotPosition.x + cellX, robotPosition.y + cellY);
+           c = grid->getCell(robotPosition.x + cellX, robotPosition.y + cellY);
 
-            if((c->occType==OCCUPIED && c->occupancy < 0.6) || (c->occType == UNEXPLORED && c->occupancy < 0.4)){
-                c->occType = FREE;
-            }else if((c->occType==FREE && c->occupancy > 0.8) || (c->occType == UNEXPLORED && c->occupancy > 0.6)){
-                c->occType = OCCUPIED;
-            }
+           if((c->occType==OCCUPIED && c->occupancy < 0.6) || (c->occType == UNEXPLORED && c->occupancy < 0.4)){
+               c->occType = FREE;
+           }else if((c->occType==FREE && c->occupancy > 0.8) || (c->occType == UNEXPLORED && c->occupancy > 0.6)){
+               c->occType = OCCUPIED;
+           }
 
-            if(c->occType == FREE){                                                                  //parede
-                for(int adjX = -8; adjX<=+8; adjX++){
-                    for(int adjY = -8; adjY<=+8; adjY++){
-                        if(c->x-adjX > robotPosition.x-maxUpdateRange && c->x+adjX < robotPosition.x+maxUpdateRange
-                           && c->y-adjY > robotPosition.y-maxUpdateRange && c->y+adjY < robotPosition.y+maxUpdateRange){         //se estiver dentro do range de atualizacão
+           if(c->occType == FREE){                                                                  //parede
+               for(int adjX = -8; adjX<=+8; adjX++){
+                   for(int adjY = -8; adjY<=+8; adjY++){
+                       if(c->x-adjX > robotPosition.x-maxUpdateRange && c->x+adjX < robotPosition.x+maxUpdateRange
+                          && c->y-adjY > robotPosition.y-maxUpdateRange && c->y+adjY < robotPosition.y+maxUpdateRange){         //se estiver dentro do range de atualizacão
 
-                            Cell* adjacentCell = grid->getCell(c->x+adjX, c->y+adjY);
+                           Cell* adjacentCell = grid->getCell(c->x+adjX, c->y+adjY);
 
-                            int x_dist = abs(c->x-adjacentCell->x);
-                            int y_dist = abs(c->y-adjacentCell->y);
+                           int x_dist = abs(c->x-adjacentCell->x);
+                           int y_dist = abs(c->y-adjacentCell->y);
 
-                            if(adjacentCell->occType == OCCUPIED){                                          //celula livre proxima a parede
-                                if(x_dist<=3 && y_dist<=3){                                             //distancia <= 3 da parede
-                                    c->planType = DANGER;
-                                }else if(x_dist<=8 && y_dist<=8){                                       //distancia entre 4 e 8 da parede
-                                    if(c->planType != DANGER)
-                                        c->planType = NEAR_WALLS;                            //evita reclassificacão de celulas
-                                }
-                            }
-                        }
-                    }
-                }
+                           if(adjacentCell->occType == OCCUPIED){                                          //celula livre proxima a parede
+                               if(x_dist<=3 && y_dist<=3){                                             //distancia <= 3 da parede
+                                   c->planType = DANGER;
+                               }else if(x_dist<=8 && y_dist<=8){                                       //distancia entre 4 e 8 da parede
+                                   if(c->planType != DANGER)
+                                       c->planType = NEAR_WALLS;                            //evita reclassificacão de celulas
+                               }
+                           }
+                       }
+                   }
+               }
 
-                for(int inc_x=-1; inc_x<=1; inc_x++){
-                    for(int inc_y=-1; inc_y<=1; inc_y++){
-                        Cell* frontierCell = grid->getCell(c->x+inc_x, c->y+inc_y);
-                        if(frontierCell->occType==UNEXPLORED){
+               for(int inc_x=-1; inc_x<=1; inc_x++){
+                   for(int inc_y=-1; inc_y<=1; inc_y++){
+                       Cell* frontierCell = grid->getCell(c->x+inc_x, c->y+inc_y);
+                       if(frontierCell->occType==UNEXPLORED){
 
-                            if(c->planType==NEAR_WALLS){
-                                frontierCell->planType=FRONTIER_NEAR_WALL;
-                            }else if(frontierCell->planType!=FRONTIER_NEAR_WALL){
-                                frontierCell->planType=FRONTIER;
-                            }
+                           if(c->planType==NEAR_WALLS){
+                               frontierCell->planType=FRONTIER_NEAR_WALL;
+                           }else if(frontierCell->planType!=FRONTIER_NEAR_WALL){
+                               frontierCell->planType=FRONTIER;
+                           }
 
-                        }
-                    }
-                }
-            }
-        }
-    }
+                       }
+                   }
+               }
+           }
+       }
+   }
+
+
+
+
+
 }
 
 void Planning::initializePotentials()
 {
     Cell *c;
 
+    // the potential of a cell is stored in:
+    // c->pot[i]
+    // the preference of a cell is stored in:
+    // c->pref
+
+    // TODO: initialize the potential field in the known map
+    //
+    //  (gridLimits.minX, gridLimits.maxY)  -------  (gridLimits.maxX, gridLimits.maxY)
+    //                  |                     \                      |
+    //                  |                      \                     |
+    //                  |                       \                    |
+    //  (gridLimits.minX, gridLimits.minY)  -------  (gridLimits.maxX, gridLimits.minY)
     for(int xCell = gridLimits.minX; xCell <= gridLimits.maxX; xCell++){
-        for(int yCell = gridLimits.minY; yCell <= gridLimits.maxY; yCell++){
-            c = grid->getCell(xCell, yCell);
+       for(int yCell = gridLimits.minY; yCell <= gridLimits.maxY; yCell++){
+           c = grid->getCell(xCell, yCell);
 
-            //potenciais
-            if(c->planType == DANGER || c->occType == OCCUPIED){
-                c->pot[0] = 1.0;
-                c->pot[1] = 1.0;
-                c->pot[2] = 1.0;
-            }else if(c->planType == FRONTIER_NEAR_WALL){
-                c->pot[0] = 0.0;
-                c->pot[1] = 0.0;
-                c->pot[2] = 0.0;
-            }else if(c->planType == FRONTIER){
-                c->pot[0] = 0.0;
-                c->pot[1] = 0.0;
-                c->pot[2] = 1.0;
-            }
+           //potenciais
+           if(c->planType == DANGER || c->occType == OCCUPIED){
+               c->pot[0] = 1.0;
+               c->pot[1] = 1.0;
+               c->pot[2] = 1.0;
+           }else if(c->planType == FRONTIER_NEAR_WALL){
+               c->pot[0] = 0.0;
+               c->pot[1] = 0.0;
+               c->pot[2] = 0.0;
+           }else if(c->planType == FRONTIER){
+               c->pot[0] = 0.0;
+               c->pot[1] = 0.0;
+               c->pot[2] = 1.0;
+           }
 
-            //Preferencias
-            float pref = 0.1;
-            if(c->planType == NEAR_WALLS){
-                c->pref = +pref;
-            }else if(c->occType == FREE){
-                c->pref = -pref;
-            }
-        }
-    }
+           //Preferencias
+           float pref = 0.4;
+           if(c->planType == NEAR_WALLS){
+               c->pref = pref;
+           }else if(c->occType == FREE){
+               c->pref = -pref;
+           }
+       }
+   }
 }
 
 void Planning::iteratePotentials()
@@ -183,6 +223,18 @@ void Planning::iteratePotentials()
     Cell* c;
     Cell *left,*right,*up,*down;
 
+    // the update of a FREE cell in position (i,j) will use the potential of the four adjacent cells
+    // where, for example:
+    //     left  = grid->getCell(i-1,j);
+
+
+    // TODO: iterate the potential field in the known map
+    //
+    //  (gridLimits.minX, gridLimits.maxY)  -------  (gridLimits.maxX, gridLimits.maxY)
+    //                  |                     \                      |
+    //                  |                      \                     |
+    //                  |                       \                    |
+    //  (gridLimits.minX, gridLimits.minY)  -------  (gridLimits.maxX, gridLimits.minY)
 
     for(int xCell = gridLimits.minX; xCell <= gridLimits.maxX; xCell++){
         for(int yCell = gridLimits.minY; yCell <= gridLimits.maxY; yCell++){
@@ -202,22 +254,37 @@ void Planning::iteratePotentials()
 
 
                 float h = (left->pot[1] + right->pot[1] + down->pot[1] + up->pot[1]) / 4;
-                float d = ((left->pot[1] - right->pot[1])/2) + ((down->pot[1] - up->pot[1])/2);
+                float d = fabs((left->pot[1] - right->pot[1])/2) + fabs((down->pot[1] - up->pot[1])/2);
 
                 c->pot[1] = h-(c->pref/4)*d;
             }
 
         }
     }
+
 }
 
 void Planning::updateGradient()
 {
     Cell* c;
 
+    // the components of the descent gradient of a cell are stored in:
+    // c->dirX[i] and c->dirY[i], for pot[i]
+
     Cell *left,*right,*up,*down;
 
+    // the gradient of a FREE cell in position (i,j) is computed using the potential of the four adjacent cells
+    // where, for example:
+    //     left  = grid->getCell(i-1,j);
 
+
+    // TODO: compute the gradient of the FREE cells in the known map
+    //
+    //  (gridLimits.minX, gridLimits.maxY)  -------  (gridLimits.maxX, gridLimits.maxY)
+    //                  |                     \                      |
+    //                  |                      \                     |
+    //                  |                       \                    |
+    //  (gridLimits.minX, gridLimits.minY)  -------  (gridLimits.maxX, gridLimits.minY)
     for(int xCell = gridLimits.minX; xCell <= gridLimits.maxX; xCell++){
         for(int yCell = gridLimits.minY; yCell <= gridLimits.maxY; yCell++){
             c = grid->getCell(xCell, yCell);
@@ -255,10 +322,11 @@ void Planning::updateGradient()
                     c->dirY[2] = c->dirY[2]/pNormC;
                 }
 
-            }else if(c->occType == OCCUPIED){
+            }else{
                 c->dirX[0] = 0.0;
                 c->dirX[1] = 0.0;
                 c->dirX[2] = 0.0;
+
                 c->dirY[0] = 0.0;
                 c->dirY[1] = 0.0;
                 c->dirY[2] = 0.0;
@@ -266,5 +334,5 @@ void Planning::updateGradient()
 
         }
     }
-}
 
+}
